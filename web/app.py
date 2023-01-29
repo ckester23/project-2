@@ -1,8 +1,8 @@
 """
-John Doe Cheyanne Kester's Flask API.
+Cheyanne Kester's Flask API.
 """
 
-from flask import Flask
+from flask import Flask, abort, send_from_directory
 import os
 import configparser
 
@@ -10,7 +10,6 @@ app = Flask(__name__)
 
 def parse_config(config_paths): 
     # from project-0 hello.py
-    #todo read debug and port num
     config_path = None
     for f in config_paths:
         if os.path.isfile(f):
@@ -24,50 +23,38 @@ def parse_config(config_paths):
     config.read(config_path)
     return config
 
-def find_file(filename):
-    path = "./pages"
+#app route function
+@app.route("/<path:request>")
+def hello(request):
+    # make sure the request is legal first
+    if "~" in request or ".." in request:
+        abort(403)
 
-    cnt = 0
-
-    # to access the files in our directory, use getcwd()
-    for file in os.listdir(path):
+    # now search for the requested file in /pages
+    for file in os.listdir("./pages"):
 
         # I don't want non-useful files
         if file.endswith(".html") or file.endswith(".css"):
 
             # check if the file we have matches the one requested
-            if ("/" + file) == filename:
-                # transmit(STATUS_OK, sock)
+            if (file) == request:
+                # now send the file
+                return send_from_directory('pages/', file);
+    
+    # if we haven't found and returned a file yet 
+    abort(404)
 
-                # now send the file's contents to display
-                opened = open(file, "r")
-                for line in opened.readlines():
-                    # transmit(line, sock)
-                opened.close()
+@app.errorhandler(403)
+def forbidden(e):
+    return send_from_directory('pages/', '403.html'), 403
 
-                cnt += 1 # this will help us in the next line
-
-    # if we never found a matching file:       
-    if cnt == 0:
-        transmit(STATUS_NOT_FOUND, sock)
-        # use abort for 404 and 403!!
-        transmit("Oops! I could not find that file\n", sock)
-
-
-#app route function
-@app.route("/") #pattern from in-class the other day
-def hello():
-    return "UOCIS docker demo!\n"
-
-#error handling functions should look similarly to the app one
-# use abort()!
+@app.errorhandler(404)
+def notfound(e):
+    return send_from_directory('pages/', '404.html'), 404
 
 if __name__ == "__main__":
     config = parse_config(["credentials.ini", "default.ini"])
-    # #message = config["DEFAULT"]["message"]
-    # options = config.configuration()
+    PORT = config["SERVER"]['PORT']
+    DEBUG = config["SERVER"]['DEBUG']
 
-    # dont use render_template use send_from_directory()
-    # DEBUG = options.DEBUG
-    # PORT = options.PORT
-    app.run(debug=True, host='0.0.0.0') # add port=whateverportwefind
+    app.run(debug=DEBUG, host='0.0.0.0', port=PORT)
